@@ -1,0 +1,8 @@
+*.log
+*.substvars
+tmp/
+files
+iproute2/
+iproute/
+iproute2-doc/
+iproute-doc/
