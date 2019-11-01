@@ -1,0 +1,87 @@
+iplink_vlan: add support for VLAN bridge binding flag
+    
+This patch adds support for the VLAN bridge binding flag that is
+supported in the kernel.
+
+Signed-off-by: Mike Manning <mmanning@vyatta.att-mail.com>
+---
+ include/uapi/linux/if_vlan.h |    9 +++++----
+ ip/iplink_vlan.c             |   11 +++++++++++
+ man/man8/ip-link.8.in        |    7 +++++++
+ 3 files changed, 23 insertions(+), 4 deletions(-)
+
+--- a/include/uapi/linux/if_vlan.h
++++ b/include/uapi/linux/if_vlan.h
+@@ -32,10 +32,11 @@ enum vlan_ioctl_cmds {
+ };
+ 
+ enum vlan_flags {
+-	VLAN_FLAG_REORDER_HDR	= 0x1,
+-	VLAN_FLAG_GVRP		= 0x2,
+-	VLAN_FLAG_LOOSE_BINDING	= 0x4,
+-	VLAN_FLAG_MVRP		= 0x8,
++	VLAN_FLAG_REORDER_HDR		= 0x1,
++	VLAN_FLAG_GVRP			= 0x2,
++	VLAN_FLAG_LOOSE_BINDING		= 0x4,
++	VLAN_FLAG_MVRP			= 0x8,
++	VLAN_FLAG_BRIDGE_BINDING	= 0x10,
+ };
+ 
+ enum vlan_name_types {
+--- a/ip/iplink_vlan.c
++++ b/ip/iplink_vlan.c
+@@ -27,6 +27,7 @@ static void print_explain(FILE *f)
+ 		"                [ gvrp { on | off } ]\n"
+ 		"                [ mvrp { on | off } ]\n"
+ 		"                [ loose_binding { on | off } ]\n"
++		"                [ bridge_binding { on | off } ]\n"
+ 		"                [ ingress-qos-map QOS-MAP ]\n"
+ 		"                [ egress-qos-map QOS-MAP ]\n"
+ 		"\n"
+@@ -134,6 +135,15 @@ static int vlan_parse_opt(struct link_ut
+ 				flags.flags &= ~VLAN_FLAG_LOOSE_BINDING;
+ 			else
+ 				return on_off("loose_binding", *argv);
++		} else if (matches(*argv, "bridge_binding") == 0) {
++			NEXT_ARG();
++			flags.mask |= VLAN_FLAG_BRIDGE_BINDING;
++			if (strcmp(*argv, "on") == 0)
++				flags.flags |= VLAN_FLAG_BRIDGE_BINDING;
++			else if (strcmp(*argv, "off") == 0)
++				flags.flags &= ~VLAN_FLAG_BRIDGE_BINDING;
++			else
++				return on_off("bridge_binding", *argv);
+ 		} else if (matches(*argv, "ingress-qos-map") == 0) {
+ 			NEXT_ARG();
+ 			if (vlan_parse_qos_map(&argc, &argv, n,
+@@ -204,6 +214,7 @@ static void vlan_print_flags(FILE *fp, _
+ 	_PF(GVRP);
+ 	_PF(MVRP);
+ 	_PF(LOOSE_BINDING);
++	_PF(BRIDGE_BINDING);
+ #undef _PF
+ 	if (flags)
+ 		print_hex(PRINT_ANY, NULL, "%x", flags);
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -395,6 +395,9 @@ the following additional arguments are s
+ .BR loose_binding " { " on " | " off " } "
+ ]
+ [
++.BR bridge_binding " { " on " | " off " } "
++]
++[
+ .BI ingress-qos-map " QOS-MAP "
+ ]
+ [
+@@ -445,6 +448,10 @@ where <phy_dev> is the physical device t
+ .BR loose_binding " { " on " | " off " } "
+ - specifies whether the VLAN device state is bound to the physical device state.
+ 
++.BR bridge_binding " { " on " | " off " } "
++- specifies whether the VLAN device link state tracks the state of bridge ports
++that are members of the VLAN.
++
+ .BI ingress-qos-map " QOS-MAP "
+ - defines a mapping of VLAN header prio field to the Linux internal packet
+ priority on incoming frames. The format is FROM:TO with multiple mappings

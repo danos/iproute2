@@ -1,0 +1,80 @@
+Fix monitor command for AF_UNSPEC NEW/DELADDR
+
+Fix display for the new multicast address notifications which use
+the unspecified address family and only contain a link local multicast
+address of interest.
+
+Signed-off-by: Patrick Ruddy <pruddy@vyatta.att-mail.com>
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -1360,23 +1360,26 @@ int print_addrinfo(const struct sockaddr
+ 				   "local", "%s",
+ 				   format_host_rta(ifa->ifa_family,
+ 						   rta_tb[IFA_LOCAL]));
+-		if (rta_tb[IFA_ADDRESS] &&
+-		    memcmp(RTA_DATA(rta_tb[IFA_ADDRESS]),
+-			   RTA_DATA(rta_tb[IFA_LOCAL]),
+-			   ifa->ifa_family == AF_INET ? 4 : 16)) {
+-			print_string(PRINT_FP, NULL, " %s ", "peer");
+-			print_color_string(PRINT_ANY,
+-					   ifa_family_color(ifa->ifa_family),
+-					   "address",
+-					   "%s",
+-					   format_host_rta(ifa->ifa_family,
+-							   rta_tb[IFA_ADDRESS]));
+-		}
+-		print_int(PRINT_ANY, "prefixlen", "/%d ", ifa->ifa_prefixlen);
++		if (ifa->ifa_family != AF_UNSPEC) {
++			if (rta_tb[IFA_ADDRESS] &&
++			    memcmp(RTA_DATA(rta_tb[IFA_ADDRESS]),
++				   RTA_DATA(rta_tb[IFA_LOCAL]),
++				   ifa->ifa_family == AF_INET ? 4 : 16)) {
++				print_string(PRINT_FP, NULL, " %s ", "peer");
++				print_color_string(PRINT_ANY,
++						   ifa_family_color(ifa->ifa_family),
++						   "address",
++						   "%s",
++						   format_host_rta(ifa->ifa_family,
++								   rta_tb[IFA_ADDRESS]));
++			}
++			print_int(PRINT_ANY, "prefixlen", "/%d ", ifa->ifa_prefixlen);
+ 
+-		if (rta_tb[IFA_RT_PRIORITY])
+-			print_uint(PRINT_ANY, "metric", "metric %u ",
+-				   rta_getattr_u32(rta_tb[IFA_RT_PRIORITY]));
++			if (rta_tb[IFA_RT_PRIORITY])
++				print_uint(PRINT_ANY, "metric", "metric %u ",
++					   rta_getattr_u32(rta_tb[IFA_RT_PRIORITY]));
++		} else
++			fprintf(fp, " ");
+ 	}
+ 
+ 	if (brief)
+--- a/lib/utils.c
++++ b/lib/utils.c
+@@ -1022,6 +1022,7 @@ const char *rt_addr_n2a_r(int af, int le
+ 		return dnet_ntop(af, &dna, buf, buflen);
+ 	}
+ 	case AF_PACKET:
++	case AF_UNSPEC:
+ 		return ll_addr_n2a(addr, len, ARPHRD_VOID, buf, buflen);
+ 	case AF_BRIDGE:
+ 	{
+@@ -1072,6 +1073,8 @@ int read_family(const char *name)
+ 		family = AF_MPLS;
+ 	else if (strcmp(name, "bridge") == 0)
+ 		family = AF_BRIDGE;
++	else if (strcmp(name, "unspec") == 0)
++		family = AF_UNSPEC;
+ 	return family;
+ }
+ 
+@@ -1091,6 +1094,8 @@ const char *family_name(int family)
+ 		return "mpls";
+ 	if (family == AF_BRIDGE)
+ 		return "bridge";
++	if (family == AF_UNSPEC)
++		return "unspec";
+ 	return "???";
+ }
+ 

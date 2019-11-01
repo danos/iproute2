@@ -1,0 +1,19 @@
+--- a/ip/iplink.c
++++ b/ip/iplink.c
+@@ -992,6 +992,16 @@ int iplink_parse(int argc, char **argv,
+ 		if (!req->i.ifi_index)
+ 			return nodev(dev);
+ 
++		/* Allow ip link set dev ... link. */
++		if (link) {
++			int ifindex;
++
++			ifindex = ll_name_to_index(link);
++			if (!ifindex)
++				return nodev(link);
++			addattr_l(&req->n, sizeof(*req), IFLA_LINK, &ifindex, 4);
++		}
++
+ 		/* Not renaming to the same name */
+ 		if (name == dev)
+ 			name = NULL;
